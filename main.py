@@ -29,14 +29,19 @@ async def handle_vapi_webhook(request: Request):
         name = data.get("customer_name", "Unknown")
         item = data.get("item", "Unknown")
         qty = data.get("quantity", "1")
+
+        # --- NEW: Catch the total price from the AI ---
+        total = data.get("total_price", "")
         
         # Auto-generate an Order ID and Timestamp
         order_id = str(uuid.uuid4())[:6].upper() 
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M") 
         status = "Pending"
+
+        # --- NEW: Drop 'total' into the 7th slot (Your Total Column) ---
+        # Note: The empty string "" before 'total' skips your 'Price' column
+        row_data = [order_id, current_date, name, item, qty, "", total, status]
         
-        # Format the row perfectly to match your specific layout
-        row_data = [order_id, current_date, name, item, qty, "", "", status]
         
         # Paste it starting at Row 7 (ignoring your top dashboard)
         sheet.append_row(row_data, table_range="A7")
