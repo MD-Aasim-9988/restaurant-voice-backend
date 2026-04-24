@@ -14,7 +14,7 @@ creds_json = os.environ.get("GOOGLE_CREDS_JSON")
 creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
 client = gspread.authorize(creds)
 
-# Your specific Google Sheet link is wired directly here
+# Your specific Google Sheet link
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1dHFNayzoxXXO73rZr0l3FsnRvFOmV59xJA0d_qf3KO0/edit").worksheet("OrderData")
 
 @app.post("/vapi-webhook")
@@ -22,7 +22,10 @@ async def handle_vapi_webhook(request: Request):
     payload = await request.json()
     
     if payload.get("message", {}).get("type") == "end-of-call-report":
-        data = payload["message"].get("call", {}).get("structuredData", {})
+        
+        # THE FIX: Tell Python to look in the "analysis" folder
+        message = payload.get("message", {})
+        data = message.get("analysis", {}).get("structuredData", {})
         
         # Grab all the data
         name = data.get("customer_name", "Unknown")
@@ -38,7 +41,7 @@ async def handle_vapi_webhook(request: Request):
         # Format the row exactly for your sheet
         row_data = [order_id, current_date, name, item, qty, "", total, status]
         
-        # Paste it starting at Row 7
+        # Paste it perfectly under your headers
         sheet.append_row(row_data, table_range="B7")
         
         return {"status": "success", "order_id": order_id}
