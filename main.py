@@ -15,7 +15,7 @@ creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=sco
 client = gspread.authorize(creds)
 
 # 2. Look for your exact document ("Restaurant Order") and the specific tab ("OrderData")
-sheet = client.open("Restaurant Order").worksheet("OrderData") 
+client.open_by_url(https://docs.google.com/spreadsheets/d/1dHFNayzoxXXO73rZr0l3FsnRvFOmV59xJA0d_qf3KO0/edit?gid=0#gid=0)
 
 @app.post("/vapi-webhook")
 async def handle_vapi_webhook(request: Request):
