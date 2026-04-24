@@ -39,7 +39,7 @@ async def handle_vapi_webhook(request: Request):
         row_data = [order_id, current_date, name, item, qty, "", total, status]
         
         # Paste it starting at Row 7
-        sheet.append_row(row_data, table_range="A7")
+        sheet.append_row(row_data, table_range="B7")
         
         return {"status": "success", "order_id": order_id}
 
