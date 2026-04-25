@@ -17,55 +17,49 @@ client = gspread.authorize(creds)
 # Your specific Google Sheet link
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1dHFNayzoxXXO73rZr0l3FsnRvFOmV59xJA0d_qf3KO0/edit").worksheet("OrderData")
 
-# --- NEW: The God-Mode Search Function ---
-# This scans the entire package recursively to find your variables no matter where Vapi hides them.
-def find_data(payload, target_key):
+# --- THE VAPI-SPECIFIC PARSER ---
+# This specifically hunts for Vapi's weird {"name": "variable", "result": "data"} structure
+def extract_vapi_variable(payload, var_name):
     if isinstance(payload, dict):
-        if target_key in payload:
-            return payload[target_key]
+        if payload.get("name") == var_name and "result" in payload:
+            return payload["result"]
         for key, value in payload.items():
-            result = find_data(value, target_key)
-            if result is not None:
-                return result
+            res = extract_vapi_variable(value, var_name)
+            if res is not None:
+                return res
     elif isinstance(payload, list):
         for item in payload:
-            result = find_data(item, target_key)
-            if result is not None:
-                return result
+            res = extract_vapi_variable(item, var_name)
+            if res is not None:
+                return res
     return None
 
 @app.post("/vapi-webhook")
 async def handle_vapi_webhook(request: Request):
     payload = await request.json()
     
-    # X-Ray Logs
-    print("===== VAPI PAYLOAD START =====", flush=True)
-    print(json.dumps(payload, indent=2), flush=True)
-    print("===== VAPI PAYLOAD END =====", flush=True)
-    
     if payload.get("message", {}).get("type") == "end-of-call-report":
         
-        # --- NEW: Use God-Mode to grab the data ---
-        name = find_data(payload, "customer_name") or "Unknown"
-        item = find_data(payload, "item") or "Unknown"
-        qty = find_data(payload, "quantity") or "1"
-        total = find_data(payload, "total_price") or ""
+        # Grab the data using the new specific parser
+        name = extract_vapi_variable(payload, "customer_name") or "Unknown"
+        item = extract_vapi_variable(payload, "item") or "Unknown"
+        qty = extract_vapi_variable(payload, "quantity") or "1"
+        total = extract_vapi_variable(payload, "total_price") or ""
         
         # Auto-generate ID and Time
         order_id = str(uuid.uuid4())[:6].upper() 
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M") 
         status = "Pending"
         
-        # Format the row exactly for your sheet
-        # Note: The empty string "" skips your Price column so 'total' lands exactly in your Total column!
+        # Format the row perfectly
         row_data = [order_id, current_date, name, item, qty, "", total, status]
         
-        # Paste it perfectly and force a brand new row
+        # Paste cleanly below header
         sheet.append_row(
             row_data, 
             value_input_option="USER_ENTERED", 
             insert_data_option="INSERT_ROWS", 
-            table_range="B7"
+            table_range="B8"
         )
         
         return {"status": "success", "order_id": order_id}
