@@ -50,9 +50,10 @@ async def handle_vapi_webhook(request: Request):
         # Format the row exactly for your sheet
         row_data = [order_id, current_date, name, item, qty, "", total, status]
         
-        # Paste it perfectly under your headers
-        sheet.append_row(row_data, table_range="B7")
-        
-        return {"status": "success", "order_id": order_id}
-
-    return {"status": "ignored"}
+# Paste it perfectly and force a brand new row to be created
+        sheet.append_row(
+            row_data, 
+            value_input_option="USER_ENTERED", 
+            insert_data_option="INSERT_ROWS", 
+            table_range="B7"
+        )
