@@ -21,10 +21,10 @@ sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1dHFNayzoxXXO
 async def handle_vapi_webhook(request: Request):
     payload = await request.json()
     
-    # --- X-RAY VISION: Print the exact data to Render Logs ---
-    print("===== VAPI PAYLOAD START =====")
-    print(json.dumps(payload, indent=2))
-    print("===== VAPI PAYLOAD END =====")
+    # --- X-RAY VISION (Now with force-flush!) ---
+    print("===== VAPI PAYLOAD START =====", flush=True)
+    print(json.dumps(payload, indent=2), flush=True)
+    print("===== VAPI PAYLOAD END =====", flush=True)
     
     if payload.get("message", {}).get("type") == "end-of-call-report":
         message = payload.get("message", {})
