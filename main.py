@@ -4,6 +4,7 @@ from google.oauth2.service_account import Credentials
 import os
 import json
 import uuid
+import re
 from datetime import datetime
 
 app = FastAPI()
@@ -17,8 +18,7 @@ client = gspread.authorize(creds)
 # Your specific Google Sheet link
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1dHFNayzoxXXO73rZr0l3FsnRvFOmV59xJA0d_qf3KO0/edit").worksheet("OrderData")
 
-# --- THE VAPI-SPECIFIC PARSER ---
-# This specifically hunts for Vapi's weird {"name": "variable", "result": "data"} structure
+# Vapi Parser
 def extract_vapi_variable(payload, var_name):
     if isinstance(payload, dict):
         if payload.get("name") == var_name and "result" in payload:
@@ -40,26 +40,37 @@ async def handle_vapi_webhook(request: Request):
     
     if payload.get("message", {}).get("type") == "end-of-call-report":
         
-        # Grab the data using the new specific parser
+        # Grab the data from Vapi
         name = extract_vapi_variable(payload, "customer_name") or "Unknown"
         item = extract_vapi_variable(payload, "item") or "Unknown"
         qty = extract_vapi_variable(payload, "quantity") or "1"
         total = extract_vapi_variable(payload, "total_price") or ""
+        
+        # --- NEW: Automatically calculate the Unit Price ---
+        unit_price = ""
+        try:
+            # Strip out any text like "Rs" or "Rupees" so we just have numbers
+            clean_total = float(re.sub(r'[^\d.]', '', str(total)))
+            clean_qty = float(re.sub(r'[^\d.]', '', str(qty)))
+            if clean_qty > 0:
+                # Divide Total by Quantity
+                unit_price = f"{clean_total / clean_qty:g}" 
+        except:
+            unit_price = "Check Total"
         
         # Auto-generate ID and Time
         order_id = str(uuid.uuid4())[:6].upper() 
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M") 
         status = "Pending"
         
-        # Format the row perfectly
-        row_data = [order_id, current_date, name, item, qty, "", total, status]
+        # Format the row perfectly with the new unit_price in Column G
+        row_data = [order_id, current_date, name, item, qty, unit_price, total, status]
         
-        # Paste cleanly below header
+        # Paste cleanly below header WITHOUT copying the brown formatting
         sheet.append_row(
             row_data, 
             value_input_option="USER_ENTERED", 
-            insert_data_option="INSERT_ROWS", 
-            table_range="B8"
+            table_range="B7"
         )
         
         return {"status": "success", "order_id": order_id}
